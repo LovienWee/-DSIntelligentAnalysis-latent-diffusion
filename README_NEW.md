@@ -53,7 +53,7 @@
 ### 1️⃣ 训练 Autoencoder（VAE）
 
 ```bash
-python main.py --base configs/autoencoder/ocean_kl.yaml -t --gpus 0,
+python main.py --base configs/autoencoder/ocean_kl.yaml -t --gpus 0
 ```
 
 * 输出示例：`logs/autoencoder/version_x/checkpoints/last.ckpt`
@@ -74,7 +74,7 @@ python main.py --base configs/autoencoder/ocean_kl.yaml -t --gpus 0,
 2. 运行训练：
 
    ```bash
-   python main.py --base configs/latent-diffusion/ocean_ldm.yaml -t --gpus 0,
+   python main.py --base configs/latent-diffusion/ocean_ldm.yaml -t --gpus 0
    ```
 
 ---
@@ -91,7 +91,7 @@ python main.py --base configs/autoencoder/ocean_kl.yaml -t --gpus 0,
 2. 运行训练：
 
    ```bash
-   python main.py --base configs/latent-diffusion/ocean_ldm_inpaint.yaml -t --gpus 0,
+   python main.py --base configs/latent-diffusion/ocean_ldm_inpaint.yaml -t --gpus 0
    ```
 
 ---
