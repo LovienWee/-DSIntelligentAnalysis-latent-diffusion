@@ -1,0 +1,78 @@
+model:
+  base_learning_rate: 1.0e-04
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  params:
+    linear_start: 0.0015
+    linear_end: 0.0195
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    loss_type: "l2"
+    first_stage_key: "image"
+    cond_stage_key: "label"
+    image_size: 64  # 根据实际数据尺寸调整
+    channels: 4     # 输入通道数 (TO, UGO, VGO, ZO)
+    cond_stage_trainable: false
+    concat_mode: true
+    monitor: "val/loss_simple"
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        embed_dim: 4
+        monitor: "val/rec_loss"
+        lossconfig:  # 新增loss配置
+          target: ldm.modules.losses.LPIPSWithDiscriminator
+          params:
+            disc_start: 50001
+            kl_weight: 1.0e-06
+            disc_weight: 0.5
+        ddconfig:
+          double_z: true
+          z_channels: 4
+          resolution: 256
+          in_channels: 4
+          out_ch: 4
+          ch: 128
+          ch_mult: [1,2,4,4]
+          num_res_blocks: 2
+          attn_resolutions: []
+          dropout: 0.0
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.ConvEmbedder
+      params:
+        in_channels: 4  # 标签图的通道数
+        out_channels: 512  # 嵌入维度
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 64  # 必须与image_size一致
+        in_channels: 4  # 匹配输入通道数
+        out_channels: 4  # 匹配输出通道数
+        model_channels: 128
+        attention_resolutions: [8, 4]  # 在8x8和4x4分辨率使用注意力
+        num_res_blocks: 2
+        channel_mult: [1, 2, 4, 4]  # 通道数倍增系数
+        num_heads: 8  # 注意力头数
+        use_scale_shift_norm: True  # 重要！稳定训练
+data:
+  target: ldm.data.base.OceanDataModuleFromConfig
+  params:
+    file_path: "/remote-home/IndianOcean.nc"
+    depth: 1  # 目标深度
+    batch_size: 8
+    train_ratio: 0.8
+    num_workers: 4
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 1000
+        max_images: 8
+        clamp: true
+  trainer:
+    max_epochs: 100
+    accelerator: "gpu"
+    devices: 1
+    precision: 16
