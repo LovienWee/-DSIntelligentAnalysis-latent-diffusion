@@ -137,3 +137,48 @@ python scripts/eval_ocean.py \
 * 稀疏观测的掩膜生成策略可在 `ocean_inpaint.py` 中调整。
 
 ---
+
+## 🧩（可选）交叉注意力条件注入跑法（与现有 concat 并行保留）
+
+> 在不改动原有 **concat** 跑法的基础上，提供一条 **cross-attn** 的替代路线，便于后续 A/B 对比或接入更复杂/异构的条件信息。
+
+### 1) 新增配置文件
+
+请使用新增的：
+
+```
+configs/latent-diffusion/ocean_ldm_inpaint_xattn.yaml
+```
+
+### 2) 训练（cross-attn）
+
+```bash
+python main.py \
+  --base configs/latent-diffusion/ocean_ldm_inpaint_xattn.yaml \
+  -t --train True \
+  model.params.first_stage_config.ckpt_path=PATH/TO/ocean_kl.ckpt
+```
+
+### 3) 推理（cross-attn）
+
+```bash
+python tools/infer_ocean.py \
+  --config configs/latent-diffusion/ocean_ldm_inpaint_xattn.yaml \
+  --ckpt   PATH/TO/last-or-best.ckpt \
+  --out    outputs/inpaint_xattn.nc
+```
+
+### 4) 评估（与原方案一致）
+
+```bash
+python tools/eval_ocean.py --pred_nc outputs/inpaint_xattn.nc
+```
+
+#### 小贴士
+
+* **通道一致性**：VAE 的 `in_channels` 必须与数据实际拼出的输入通道一致；cross-attn 下 UNet 的 `in_channels = z_channels`（默认 4）。
+* **上下文维度**：`cond_stage_config.params.embed_dim` 必须等于 `unet_config.params.context_dim`。
+* **显存控制**：`downsample` 影响 token 数；显存紧张时增大 `downsample` 或减小 batch size。
+* **A/B 对比**：在相同 `split_json` 与训练步数下，对 concat 与 cross-attn 做 RMSE/MAE/PSNR/SSIM 对比。
+
+---

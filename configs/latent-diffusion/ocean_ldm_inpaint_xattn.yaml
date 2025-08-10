@@ -1,0 +1,47 @@
+model:
+  base_learning_rate: 1.0e-4
+  target: ldm.models.diffusion.ddpm.LatentDiffusion   # ← 用基类
+  params:
+    conditioning_key: crossattn                       # ← 关键：改成 crossattn
+    concat_mode: false                                # ← 显式关闭 concat（可写可不写）
+
+    first_stage_key: image
+    cond_stage_key: cond                              # ← 让模型从 batch['cond'] 取条件（你的数据集已有）
+    monitor: "val/loss_simple_ema"
+    timesteps: 1000
+    num_timesteps_cond: 1
+    linear_start: 0.00085
+    linear_end: 0.012
+    log_every_t: 100
+
+    # -------- VAE / AutoencoderKL 配置：保持不变 --------
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        # …（与你现有 ocean_kl.yaml 对齐）
+        ddconfig:
+          z_channels: 4
+          in_channels: 4      # ← 你的输入通道数，保持一致
+          # …
+
+    # -------- UNet 配置：注意 in_channels / context_dim --------
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        # 【重点1】cross-attn 时 UNet 输入只吃 z，而不再拼条件：
+        in_channels: 4        # ← = z_channels。之前 concat 是 8（2*z），现在要改成 4
+        out_channels: 4
+        # 其它如模型宽度、层数、attn 分辨率保持不变
+        # 【重点2】给 cross-attn 指定上下文维度：
+        context_dim: 256      # ← 与 cond embedder 的 embed_dim 保持一致
+        # …
+
+    # -------- 条件编码器（把 cond 编为 token）--------
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.ConvEmbedder
+      params:
+        in_channels: 5        # ← 解释：你的 cond 是 “masked_image(C)” + “mask(1)”
+                              #     如果像现在一样 C=4（SST/SOS/THETAO/SO的抽层组合），那就是 4+1=5
+        embed_dim: 256        # ← 与 unet_config.params.context_dim 对齐
+        downsample: 4         # ← 每 4×4 patch 出一个 token（减少 token 数，省显存）
+        pool: "none"          # ← 保留空间token（HxW/16 个）；如想进一步降维可设 "mean"
